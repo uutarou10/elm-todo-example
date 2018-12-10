@@ -1,20 +1,26 @@
-module Main exposing (..)
+module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
-import Html exposing (Html, text, div, h1, img)
-import Html.Attributes exposing (src)
+import Browser.Navigation as Navigation
+import Html exposing (..)
+import Html.Attributes exposing (..)
+import Url
+import Url.Parser as Parser exposing ((</>))
+
 
 
 ---- MODEL ----
 
 
 type alias Model =
-    {}
+    { key : Navigation.Key }
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( {}, Cmd.none )
+init : () -> Url.Url -> Navigation.Key -> ( Model, Cmd Msg )
+init flags url key =
+    ( Model key
+    , Cmd.none
+    )
 
 
 
@@ -22,35 +28,77 @@ init =
 
 
 type Msg
-    = NoOp
+    = LinkClicked Browser.UrlRequest
+    | UrlChange Url.Url
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        LinkClicked urlRequest ->
+            case urlRequest of
+                Browser.Internal url ->
+                    ( model, Navigation.pushUrl model.key (Url.toString url) )
+
+                Browser.External href ->
+                    ( model, Navigation.load href )
+
+        UrlChange url ->
+            ( model, Cmd.none )
+
+
+
+---- PARSER ----
+
+
+type Route
+    = Top
+    | Profile
+    | NotFound
+
+
+parser : Parser.Parser (Route -> a) a
+parser =
+    Parser.oneOf
+        [ Parser.map Top Parser.top
+        , Parser.map Profile <| Parser.s "profile"
+        ]
 
 
 
 ---- VIEW ----
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
-    div []
-        [ img [ src "/logo.svg" ] []
-        , h1 [] [ text "Your Elm App is working!" ]
+    { title = "title"
+    , body =
+        [ viewHeader
+        , a
+            [ href "https://google.com"
+            , target "__blank"
+            ]
+            [ text "Go to Google.com" ]
         ]
+    }
+
+
+viewHeader : Html Msg
+viewHeader =
+    header []
+        [ h1 [] [ text "Todo List" ] ]
 
 
 
 ---- PROGRAM ----
 
 
-main : Program () Model Msg
 main =
-    Browser.element
-        { view = view
-        , init = \_ -> init
+    Browser.application
+        { init = init
+        , view = view
         , update = update
         , subscriptions = always Sub.none
+        , onUrlRequest = LinkClicked
+        , onUrlChange = UrlChange
         }
